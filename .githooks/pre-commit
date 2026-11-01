@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Runs the requirement rules before every commit. Do not bypass with --no-verify:
+# CI runs the same checks and will reject the push.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+if [ "$(git symbolic-ref --short -q HEAD || true)" = main ]; then
+  echo "main is protected: create a branch (see RULES.md)" >&2
+  exit 1
+fi
+python3 -m tools.reqcheck staged
+python3 -m pytest -q

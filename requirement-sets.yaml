@@ -1,0 +1,4 @@
+# Requirement sets. Written only by the release workflow
+# (.github/workflows/requirement-set.yml) and by `reqcheck finalize`
+# (which marks a set invalidated). Never edit by hand. See RULES.md.
+sets: []

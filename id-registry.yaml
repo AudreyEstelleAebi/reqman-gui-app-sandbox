@@ -1,0 +1,8 @@
+# Every requirement ID ever issued. APPEND-ONLY: never edit or remove an entry.
+# Allocate IDs with: python3 -m tools.reqcheck new --level N --title "..."
+ids:
+  - {id: LP-0-1, issued: 2026-01-05}
+  - {id: LP-0-2, issued: 2026-01-05}
+  - {id: LP-1-1, issued: 2026-01-05}
+  - {id: LP-1-2, issued: 2026-01-05}
+  - {id: LP-1-3, issued: 2026-01-05}

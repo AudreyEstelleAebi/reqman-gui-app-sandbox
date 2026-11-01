@@ -1,0 +1,31 @@
+document:
+  project: Fictional Test Project
+  title: Fictional requirements for local tests
+  header_title: Fictional Requirements
+  number: TEST-0001
+  issue: "001"
+  released: 2026-01-05
+  classification: TEST DATA
+  author: Test AUTHOR
+  reviewed_by: Test REVIEWER
+  approved_by: Test APPROVER
+  address: [TEST ADDRESS]
+  disclaimer: "Fictional data for software tests."
+authors:
+  - {name: Test AUTHOR, initials: TA, role: Tester, entity: Test Entity}
+revisions:
+  - {issue: "001", date: 2026-01-05, authors: [TA], sections: All, change: Initial Version}
+purpose: |-
+  Fictional requirements for the tests of the reqman GUI.
+levels:
+  - level: 0
+    heading: Objectives (Level 0)
+    intro: |-
+      Fictional objectives.
+    group_by_category: false
+  - level: 1
+    heading: Requirements (Level 1)
+    intro: |-
+      Fictional requirements.
+    group_by_category: true
+    categories: [Test Category A, Test Category B]

@@ -1,0 +1,92 @@
+name: Requirement rules
+
+# push to the default branch : main-line rules over the first-parent chain
+# push to other branches     : branch rules against the default branch
+# pull_request               : tests, branch rules and the merge gate; the
+#                              result is published as the commit status
+#                              `requirements/gate` (the required check).
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements-dev.txt
+      - name: Unit tests and working-tree check
+        run: python3 -m pytest -q
+
+      - name: Main-line rules (push to the default branch)
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          BASE="$PUSH_BEFORE"
+          if [ -z "$BASE" ] || [ "$BASE" = 0000000000000000000000000000000000000000 ] \
+             || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE=ROOT
+          fi
+          python3 -m tools.reqcheck range "$BASE" HEAD --first-parent
+
+      - name: Branch rules (push to another branch)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') && github.ref != format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: python3 -m tools.reqcheck branch --main "origin/$DEFAULT_BRANCH" HEAD
+
+      - name: Branch rules (pull request)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: python3 -m tools.reqcheck branch --main "origin/$BASE_REF" HEAD
+
+      - name: Merge gate (pull request)
+        id: gate
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          python3 -m tools.reqcheck gate --main "origin/$BASE_REF" \
+            --pr-body "$RUNNER_TEMP/pr-body.md" --pr-url "$PR_URL"
+
+      - name: Publish requirements/gate status
+        if: always() && github.event_name == 'pull_request'
+        env:
+          SHA: ${{ github.event.pull_request.head.sha }}
+          GATE: ${{ steps.gate.outcome }}
+          JOB: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$GATE" = success ] && [ "$JOB" = success ]; then
+            STATE=success; DESC="Requirements are finalized and valid"
+          else
+            STATE=failure; DESC="Not mergeable: add label 'finalize' or comment /finalize, or fix the errors"
+          fi
+          # Fork PRs get a read-only token; the status cannot be posted there.
+          gh api "repos/${{ github.repository }}/statuses/$SHA" \
+            -f state="$STATE" -f context="requirements/gate" \
+            -f description="$DESC" -f target_url="$RUN_URL" \
+            || echo "::warning::could not post the commit status"
+
+      - name: Fail when the gate is red
+        if: github.event_name == 'pull_request' && steps.gate.outcome == 'failure'
+        run: exit 1
